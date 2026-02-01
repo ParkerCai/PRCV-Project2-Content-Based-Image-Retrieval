@@ -1,0 +1,24 @@
+# Build outputs
+build/
+bin/
+
+# Generated feature files
+features/*.csv
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.vcxproj*
+*.sln
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
