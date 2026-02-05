@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 project(cbir)  # Content-based Image Retrieval
 
-# Set C++ standard to C++17 for filesystem support
-set(CMAKE_CXX_STANDARD 17)
+# Set C++ standard to C++23 for modern features like println
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -28,6 +28,10 @@ set(SOURCES
 
 # --- Executables ---
 # TODO: Add new executables and/or modify existing as you build your programs
+
+# CBIR main program
+add_executable(cbir cbir.cpp ${SOURCES})
+target_link_libraries(cbir ${OpenCV_LIBS})
 
 # Example: Build feature database
 # add_executable(build_db build_db.cpp ${SOURCES})
