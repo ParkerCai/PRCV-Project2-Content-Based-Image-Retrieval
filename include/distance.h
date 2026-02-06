@@ -15,5 +15,7 @@
 /// Prototypes
 float sumOfSquaredDifference(const std::vector<float>& features1,
   const std::vector<float>& features2);
+float histogramIntersection(const std::vector<float>& histA,
+  const std::vector<float>& histB);
 
 #endif // DISTANCE_H

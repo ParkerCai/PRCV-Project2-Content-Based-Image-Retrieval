@@ -19,15 +19,13 @@ The process can be generally described as the following four steps.
 3. Compute the distance of T from all of the images in B using the distance metric D(Ft,Fi).
 4. Sort the images in B according to their distance from T and return the best N matches.
 
-
-
 ## Directory Structure
 
 ```
 Project_2_Content_based_Image_Retrieval/
 ├── bin/                    # Executables (auto-generated)
 ├── build/                  # CMake build files (auto-generated)
-├── data/               
+├── data/   
 │   └── olympus/            # Image database (1107 images)
 ├── features/               # Pre-computed feature CSV files
 ├── include/                # Header files
@@ -36,6 +34,7 @@ Project_2_Content_based_Image_Retrieval/
 ├── src/                    # Source files
 │   ├── CMakeLists.txt      # Build configuration
 │   ├── CMakePresets.json   # CMake presets for VS Code
+|   ├── cbir.cpp            # Main Program
 │   ├── features.cpp        # TODO: Implement feature extraction
 │   ├── distance.cpp        # TODO: Implement distance metrics
 │   ├── csv_util/           # CSV utilities

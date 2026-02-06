@@ -34,3 +34,50 @@ float sumOfSquaredDifference(const std::vector<float>& featuresA,
 
   return sum;
 }
+
+
+/*
+  Histogram Intersection Distance
+  - Measures similarity between two histograms
+  - Formula: intersection = Σ min(Aᵢ, Bᵢ) for normalized histograms
+  - Returns (1 - intersection) so smaller values = more similar
+  - Normalizes histograms before comparison
+
+  Input:
+    histA - first histogram (std::vector<float>)
+    histB - second histogram (std::vector<float>)
+
+  Output:
+    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+*/
+float histogramIntersection(const std::vector<float>& histA,
+  const std::vector<float>& histB) {
+  // Check for size mismatch
+  if (histA.size() != histB.size() || histA.empty()) {
+    return 1.0f;  // Maximum distance if invalid input
+  }
+
+  // Compute sums for normalization
+  float sumA = 0.0f, sumB = 0.0f;
+  for (size_t i = 0; i < histA.size(); i++) {
+    sumA += histA[i];
+    sumB += histB[i];
+  }
+
+  // Avoid division by zero
+  if (sumA < 1.0f || sumB < 1.0f) {
+    return 1.0f;
+  }
+
+  // Compute normalized histogram intersection
+  float intersection = 0.0f;
+  for (size_t i = 0; i < histA.size(); i++) {
+    float normA = histA[i] / sumA;
+    float normB = histB[i] / sumB;
+    intersection += std::min(normA, normB);
+  }
+
+  // Return distance (1 - similarity)
+  // intersection is in range [0, 1], so distance is also in [0, 1]
+  return 1.0f - intersection;
+}

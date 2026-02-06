@@ -3,7 +3,8 @@
   February 3, 2026
   CS5330 - Project 2: Content-based Image Retrieval
 
-  CBIR main program - finds similar images using baseline features
+  CBIR main program - finds similar images using various feature types
+  and distance metrics.
 */
 
 
@@ -23,6 +24,11 @@ enum CBIRExitCode {
   ImageLoadFailed = 2
 };
 
+enum FeatureType {
+  Baseline,
+  RGChromHistogram
+};
+
 // Helper function to check if a file is an image based on extension
 bool isImageFile(const std::filesystem::path& path) {
   std::string ext = path.extension().string();
@@ -32,23 +38,43 @@ bool isImageFile(const std::filesystem::path& path) {
 
 /*
   Standard main function with command line arguments for
-  Content-based Image Retrieval using baseline features.
+  Content-based Image Retrieval.
+  
   Usage:
-  ./cbir.exe ./query_image.jpg ./image_database_directory/
+  ./cbir.exe <query_image> <image_database_directory> [feature_type]
+  ./cbir.exe data/olympus/pic.0164.jpg data/olympus histogram
+  feature_type options:
+    baseline  - 7x7 center pixel block (default)
+    histogram - 2D rg chromaticity histogram with intersection
 */
 int main(int argc, char* argv[]) {
   // 1. parse command line arguments
   // Error handling for missing arguments
   if (argc < 3) {
-    std::println("Usage: {} <query_image> <image_database_directory>", argv[0]);
+    std::println("Usage: {} <query_image> <image_database_directory> [feature_type]", argv[0]);
+    std::println("  feature_type: baseline (default), histogram");
     exit(MissingArg);  // exit with error code
   }
 
   cv::Mat src;  // read image from file specified in command line argument
   std::string imageDir = argv[2];  // image directory path
 
-  // read and load the query image
+  // Parse feature type
+  FeatureType featureType = Baseline;
+  if (argc >= 4) {
+    std::string featureArg = argv[3];
+    if (featureArg == "histogram") {
+      featureType = RGChromHistogram;
+    }
+  }
+
+  // Read and load the query image
   src = cv::imread(argv[1]);
+  // Error handling: empty image
+  if (src.empty()) {
+    std::println(stderr, "Error: Failed to load query image {}", argv[1]);
+    exit(ImageLoadFailed);
+  }
 
   // 2. Read directory
   std::vector<std::string> imageFiles;
@@ -60,7 +86,15 @@ int main(int argc, char* argv[]) {
 
   // 3. Extract features from query image
   std::vector<float> queryFeatures;
-  int status = extractBaselineFeatures(src, queryFeatures);
+  int status;
+  
+  if (featureType == RGChromHistogram) {
+    std::println("2D RG Chromaticity Histogram (16x16 bins) with Histogram Intersection");
+    status = extractRGChromHistogram(src, queryFeatures, 16);
+  } else {
+    std::println("Baseline features (7x7 center block) with SSD");
+    status = extractBaselineFeatures(src, queryFeatures);
+  }
 
   // Error handling for feature extraction failure
   if (status != 0) {
@@ -82,25 +116,37 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<float> features;
-    int status = extractBaselineFeatures(image, features);
+    int extractStatus;
+    
+    if (featureType == RGChromHistogram) {
+      extractStatus = extractRGChromHistogram(image, features, 16);
+    } else {
+      extractStatus = extractBaselineFeatures(image, features);
+    }
 
     // Error handling for feature extraction failure
-    if (status != 0) {
+    if (extractStatus != 0) {
       std::println(stderr, "Error: Failed to extract features from image {}", imageFile);
       continue;
     }
 
     // compute distance and store it with the filename
-    float distance = sumOfSquaredDifference(queryFeatures, features);
+    float distance;
+    if (featureType == RGChromHistogram) {
+      distance = histogramIntersection(queryFeatures, features);
+    } else {
+      distance = sumOfSquaredDifference(queryFeatures, features);
+    }
+    
     distances.push_back(std::make_pair(distance, imageFile)); // {distance, filename} pair
   }
   std::sort(distances.begin(), distances.end());
 
-  // 5. Display top 4 results
-  std::println("Top 4 similar images:");
+  // 5. Display top 4 results (query image + top 3 matches)
+  std::println("\nTop 4 similar images:");
   for (int i = 0; i < 4 && i < (int)distances.size(); i++) {
     std::filesystem::path p(distances[i].second); // get filename from path
-    std::println("{}: {} (distance: {})", i + 1, p.filename().string(), distances[i].first);
+    std::println("{}: {} (distance: {:.6f})", i + 1, p.filename().string(), distances[i].first); // round to 6 decimal places
   }
 
   return Success;

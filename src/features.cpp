@@ -49,3 +49,71 @@ int extractBaselineFeatures(const cv::Mat& src, std::vector<float>& features) {
 
   return 0;
 }
+
+
+/*
+  Extract 2D RG Chromaticity Histogram from the image
+
+  Chromaticity removes intensity information, keeping only color ratios:
+    r = R / (R + G + B)
+    g = G / (R + G + B)
+  This makes the feature more robust to lighting changes and intensity variations.
+
+  Input:
+    src - input image (cv::Mat), using const to prevent modifying src img (safety)
+    features - output histogram as flattened vector (bins * bins values)
+    bins - number of bins for each dimension (default 16 bins)
+*/
+int extractRGChromHistogram(const cv::Mat& src, std::vector<float>& features, int bins) {
+  // Edge case: empty image
+  if (src.empty()) {
+    std::println(stderr, "Error: Empty image for histogram extraction");
+    return -1;
+  }
+
+  // Create 2D histogram (bins x bins) initialized to zero
+  cv::Mat histogram = cv::Mat::zeros(bins, bins, CV_32F);
+
+  // Iterate through all pixels using row pointers for efficiency
+  for (int i = 0; i < src.rows; i++) {
+    const cv::Vec3b* rowPtr = src.ptr<cv::Vec3b>(i);  // pointer to row i
+    for (int j = 0; j < src.cols; j++) {
+      // get the RGB values
+      float B = rowPtr[j][0];
+      float G = rowPtr[j][1];
+      float R = rowPtr[j][2];
+
+      // compute divisor, handle black pixels
+      float divisor = R + G + B;
+      divisor = divisor > 0.0f ? divisor : 1.0f; // avoid divide by zero
+
+      // compute rg chromaticity
+      float r = R / divisor; // r and g are in [0, 1] range
+      float g = G / divisor;
+
+      // compute bin indices with proper rounding (+0.5)
+      int rIndex = static_cast<int>(r * (bins - 1) + 0.5f);
+      int gIndex = static_cast<int>(g * (bins - 1) + 0.5f);
+
+      // increment histogram bin
+      histogram.at<float>(rIndex, gIndex) += 1.0f;
+    }
+  }
+
+  // Flatten 2D histogram to 1D feature vector (raw counts)
+  // normalization is done during histogram intersection
+  features.clear(); // clear the features vector before writing
+  features.reserve(bins * bins); // reserve space to avoid multiple reallocations
+  
+  // loop through histogram and push values to features vector
+  for (int i = 0; i < bins; i++) { // r bin
+    // 
+    const float* histRowPtr = histogram.ptr<float>(i);
+    for (int j = 0; j < bins; j++) { // g bin
+      features.push_back(histRowPtr[j]); // push count for the (r, g) bin
+    }
+  }
+
+  return 0;
+}
+  
