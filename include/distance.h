@@ -1,5 +1,6 @@
 /*
   Parker Cai
+  Jenny Nguyen
   January 24, 2026
   CS5330 - Project 2: Content-based Image Retrieval
 
@@ -17,5 +18,8 @@ float sumOfSquaredDifference(const std::vector<float>& features1,
   const std::vector<float>& features2);
 float histogramIntersection(const std::vector<float>& histA,
   const std::vector<float>& histB);
+
+float multiHistogramDistance(const std::vector<float>& features1, 
+  const std::vector<float>& features2);
 
 #endif // DISTANCE_H

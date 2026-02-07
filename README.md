@@ -1,6 +1,13 @@
 # Project 2: Content-based Image Retrieval
 
-CS5330 Pattern Recognition & Computer Vision
+**CS5330 Pattern Recognition & Computer Vision**
+
+
+## Team
+
+- GitHub: Parker Cai - [@parkercai (https://github.com/ParkerCai)] 
+
+- GitHub: Jenny Nguyen - [@jennyncodes (https://github.com/jennyncodes)]
 
 ## Overview
 
@@ -76,7 +83,18 @@ cmake --build . --config Release
 ### Task 1: Baseline Matching
 
 - **Feature**: 7x7 center pixel values
+- **Distance Metric**: Sum of Squared Difference (SSD)
+- **Testing**: .\bin\cbir.exe data\olympus\pic.1016.jpg data\olympus baseline
 
 ### Task 2: Histogram Matching
 
 - **Feature**: 2D color histogram
+- **Distance Metric**: Histogram Intersection
+- **Testing**: .\bin\cbir.exe data\olympus\pic.0164.jpg data\olympus histogram
+
+### Task 3: Mutli-histogram Matching
+
+- **Feature**: Two RGB histograms (8x8x8 bins) - top half and bottom half
+- **Distance Metric**: Histogram Intersection with equal weighting (50% top, 50% bottom)
+- **Testing**: .\bin\cbir.exe data\olympus\pic.0274.jpg data\olympus multihistogram
+

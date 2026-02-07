@@ -1,5 +1,6 @@
 /*
   Parker Cai
+  Jenny Nguyen
   February 3, 2026
   CS5330 - Project 2: Content-based Image Retrieval
 
@@ -15,5 +16,8 @@
 // Prototypes
 int extractBaselineFeatures(const cv::Mat& image, std::vector<float>& features);
 int extractRGChromHistogram(const cv::Mat& image, std::vector<float>& features, int bins = 16); // default 16 bins
+
+int extractMultiHistogram(const cv::Mat& image, std::vector<float>& features);
+
 
 #endif // FEATURES_H
