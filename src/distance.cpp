@@ -99,37 +99,47 @@ float histogramIntersection(const std::vector<float>& histA,
     float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
 */
 float multiHistogramDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
+  // Check for size mismatch - both must be exactly 1024 bins
   if (f1.size() != 1024 || f2.size() != 1024) return 1.0f;
   
-  // normalize and compare top half
+  // Compute sums for normalization of top half histograms
   float sum1_top = 0, sum2_top = 0;
   for (int i = 0; i < 512; i++) {
     sum1_top += f1[i];
     sum2_top += f2[i];
   }
   
+  // Compute normalized histogram intersection for top half
   float intersect_top = 0;
   for (int i = 0; i < 512; i++) {
+    // Normalize bin counts to create probability distributions
     float n1 = f1[i] / sum1_top;
     float n2 = f2[i] / sum2_top;
+    // Accumulate minimum of normalized values (intersection measure)
     intersect_top += std::min(n1, n2);
   }
-  
-  // normalize and compare bottom half
+
+  // Compute sums for normalization of bottom half histograms
   float sum1_bot = 0, sum2_bot = 0;
   for (int i = 512; i < 1024; i++) {
     sum1_bot += f1[i];
     sum2_bot += f2[i];
   }
   
+  // Compute normalized histogram intersection for bottom half
   float intersect_bot = 0;
   for (int i = 512; i < 1024; i++) {
+    // Normalize bin counts to create probability distributions
     float n1 = f1[i] / sum1_bot;
     float n2 = f2[i] / sum2_bot;
+    // Accumulate minimum of normalized values (intersection measure)
     intersect_bot += std::min(n1, n2);
   }
   
-  // average them
+  // Average the intersection values from both regions
+  // This gives equal weight to top and bottom halves
   float avg = (intersect_top + intersect_bot) / 2.0f;
+
+  // Return distance (1 - average intersection)
   return 1.0f - avg;
 }
