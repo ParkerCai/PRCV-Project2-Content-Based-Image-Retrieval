@@ -116,4 +116,55 @@ int extractRGChromHistogram(const cv::Mat& src, std::vector<float>& features, in
 
   return 0;
 }
+
+/*
+  Multi-Histogram Features (Task 3)
+  - Splits image into top and bottom halves
+  - Computes RGB histogram for each half separately
+  - Uses 8 bins per channel (R, G, B): 8x8x8 = 512 bins per histogram
+  - Total feature vector: 1024 values (512 top + 512 bottom)
+  - Captures both color distribution and spatial layout
+
+  Input:
+    src - input image (cv::Mat)
+    features - output feature vector (std::vector<float>)
+
+  Output:
+    int - 0 on success, -1 on error
+*/
+int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
+  if (src.empty()) return -1;
+  
+  features.clear();
+  int bins = 8;
+  int midRow = src.rows / 2;
+  
+  // top and bottom halves
+  cv::Mat topHalf = src(cv::Rect(0, 0, src.cols, midRow));
+  cv::Mat bottomHalf = src(cv::Rect(0, midRow, src.cols, src.rows - midRow));
+  
+  cv::Mat halves[] = {topHalf, bottomHalf};
+  
+  for (int h = 0; h < 2; h++) {
+    std::vector<float> hist(512, 0);
+    
+    for (int y = 0; y < halves[h].rows; y++) {
+      for (int x = 0; x < halves[h].cols; x++) {
+        cv::Vec3b pixel = halves[h].at<cv::Vec3b>(y, x);
+        int r = pixel[2] * bins / 256;
+        int g = pixel[1] * bins / 256;
+        int b = pixel[0] * bins / 256;
+        if (r >= bins) r = bins - 1;
+        if (g >= bins) g = bins - 1;
+        if (b >= bins) b = bins - 1;
+        hist[r * 64 + g * 8 + b]++;
+      }
+    }
+    
+    for (int i = 0; i < 512; i++) {
+      features.push_back(hist[i]);
+    }
+  }
+  return 0;
+}
   

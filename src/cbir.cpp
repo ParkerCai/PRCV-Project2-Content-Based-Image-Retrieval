@@ -1,5 +1,6 @@
 /*
   Parker Cai
+  Jenny Nguyen
   February 3, 2026
   CS5330 - Project 2: Content-based Image Retrieval
 
@@ -26,7 +27,8 @@ enum CBIRExitCode {
 
 enum FeatureType {
   Baseline,
-  RGChromHistogram
+  RGChromHistogram,
+  MultiHistogram
 };
 
 // Helper function to check if a file is an image based on extension
@@ -46,6 +48,7 @@ bool isImageFile(const std::filesystem::path& path) {
   feature_type options:
     baseline  - 7x7 center pixel block (default)
     histogram - 2D rg chromaticity histogram with intersection
+    multihistogram - multi-histogram with custom distance
 */
 int main(int argc, char* argv[]) {
   // 1. parse command line arguments
@@ -65,7 +68,9 @@ int main(int argc, char* argv[]) {
     std::string featureArg = argv[3];
     if (featureArg == "histogram") {
       featureType = RGChromHistogram;
-    }
+    } else if (featureArg == "multihistogram") {
+      featureType = MultiHistogram;
+    }   
   }
 
   // Read and load the query image
@@ -91,6 +96,9 @@ int main(int argc, char* argv[]) {
   if (featureType == RGChromHistogram) {
     std::println("2D RG Chromaticity Histogram (16x16 bins) with Histogram Intersection");
     status = extractRGChromHistogram(src, queryFeatures, 16);
+  } else if (featureType == MultiHistogram) {
+    std::println("Multi-histogram");
+    status = extractMultiHistogram(src, queryFeatures);
   } else {
     std::println("Baseline features (7x7 center block) with SSD");
     status = extractBaselineFeatures(src, queryFeatures);
@@ -120,6 +128,8 @@ int main(int argc, char* argv[]) {
     
     if (featureType == RGChromHistogram) {
       extractStatus = extractRGChromHistogram(image, features, 16);
+    } else if (featureType == MultiHistogram) {
+      extractStatus = extractMultiHistogram(image, features); 
     } else {
       extractStatus = extractBaselineFeatures(image, features);
     }
@@ -134,6 +144,8 @@ int main(int argc, char* argv[]) {
     float distance;
     if (featureType == RGChromHistogram) {
       distance = histogramIntersection(queryFeatures, features);
+    } else if (featureType == MultiHistogram) {
+      distance = multiHistogramDistance(queryFeatures, features);
     } else {
       distance = sumOfSquaredDifference(queryFeatures, features);
     }

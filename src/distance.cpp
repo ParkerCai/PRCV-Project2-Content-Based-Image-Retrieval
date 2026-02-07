@@ -1,5 +1,6 @@
 /*
   Parker Cai
+  Jenny Nguyen
   February 2, 2026
   CS5330 - Project 2: Content-based Image Retrieval
 
@@ -80,4 +81,55 @@ float histogramIntersection(const std::vector<float>& histA,
   // Return distance (1 - similarity)
   // intersection is in range [0, 1], so distance is also in [0, 1]
   return 1.0f - intersection;
+}
+
+/*
+  Multi-Histogram Distance (Task 3)
+  - Compares two multi-histogram features using histogram intersection
+  - Computes intersection separately for top and bottom halves
+  - Uses equal weighting: 50% top half, 50% bottom half
+  - Formula: distance = 1 - ((intersect_top + intersect_bot) / 2)
+  - Normalizes each histogram before comparison
+
+  Input:
+    f1 - first feature vector (1024 values: 512 top + 512 bottom)
+    f2 - second feature vector (1024 values: 512 top + 512 bottom)
+
+  Output:
+    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+*/
+float multiHistogramDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
+  if (f1.size() != 1024 || f2.size() != 1024) return 1.0f;
+  
+  // normalize and compare top half
+  float sum1_top = 0, sum2_top = 0;
+  for (int i = 0; i < 512; i++) {
+    sum1_top += f1[i];
+    sum2_top += f2[i];
+  }
+  
+  float intersect_top = 0;
+  for (int i = 0; i < 512; i++) {
+    float n1 = f1[i] / sum1_top;
+    float n2 = f2[i] / sum2_top;
+    intersect_top += std::min(n1, n2);
+  }
+  
+  // normalize and compare bottom half
+  float sum1_bot = 0, sum2_bot = 0;
+  for (int i = 512; i < 1024; i++) {
+    sum1_bot += f1[i];
+    sum2_bot += f2[i];
+  }
+  
+  float intersect_bot = 0;
+  for (int i = 512; i < 1024; i++) {
+    float n1 = f1[i] / sum1_bot;
+    float n2 = f2[i] / sum2_bot;
+    intersect_bot += std::min(n1, n2);
+  }
+  
+  // average them
+  float avg = (intersect_top + intersect_bot) / 2.0f;
+  return 1.0f - avg;
 }
