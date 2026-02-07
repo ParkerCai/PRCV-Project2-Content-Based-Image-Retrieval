@@ -1,10 +1,9 @@
 # Project 2: Content-based Image Retrieval
 
+**CS5330 Pattern Recognition & Computer Vision**
 
 
 ## Team
-
-**CS5330 Pattern Recognition & Computer Vision**
 
 - GitHub: Parker Cai - [@parkercai (https://github.com/ParkerCai)] 
 
