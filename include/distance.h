@@ -16,10 +16,17 @@
 /// Prototypes
 float sumOfSquaredDifference(const std::vector<float>& features1,
   const std::vector<float>& features2);
+
 float histogramIntersection(const std::vector<float>& histA,
   const std::vector<float>& histB);
 
+// multi-histogram distance function 
 float multiHistogramDistance(const std::vector<float>& features1, 
   const std::vector<float>& features2);
+
+//texture and color distance function 
+float textureAndColorDistance(const std::vector<float>& f1, 
+  const std::vector<float>& f2);
+  
 
 #endif // DISTANCE_H

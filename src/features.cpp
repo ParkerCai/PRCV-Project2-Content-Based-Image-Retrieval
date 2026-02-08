@@ -120,78 +120,149 @@ int extractRGChromHistogram(const cv::Mat& src, std::vector<float>& features, in
 
 /*
   Multi-Histogram Features (Task 3)
-  - Splits image into top and bottom halves
-  - Computes RGB histogram for each half separately
-  - Uses 8 bins per channel (R, G, B): 8x8x8 = 512 bins per histogram
-  - Total feature vector: 1024 values (512 top + 512 bottom)
-  - Captures both color distribution and spatial layout
-
+  
+  Splits the image in half (top/bottom) and makes a separate RGB histogram 
+  for each half. This way we get color info AND some spatial info about 
+  where colors appear in the image.
+  
+  Each histogram uses 8 bins per channel (R,G,B) = 8*8*8 = 512 bins
+  So total we have 512 values for top half + 512 for bottom = 1024 features
+  
   Input:
     src - input image (cv::Mat)
     features - output feature vector (std::vector<float>)
 
-  Output:
-    int - 0 on success, -1 on error
+  Returns: 0 if success, -1 if error
 */
 int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
 
-  // Edge case: empty image
+  // check if image is empty
   if (src.empty()) return -1;
 
-  // Clear any existing features before writing new ones
-  features.clear();
+  features.clear(); // clear out old features
+  
+  int bins = 8; // using 8 bins per color channel
 
-  // Use 8 bins per color channel (8x8x8 = 512 total bins per region)
-  int bins = 8;
-
-  // Calculate the middle row to split image into two halves
+  // split image into top and bottom halves
   int midRow = src.rows / 2;
   
-  // Extract top and bottom halves using cv::Rect(x, y, width, height)
-  // Top half: from row 0 to midRow
+  // cv::Rect is (x, y, width, height)
   cv::Mat topHalf = src(cv::Rect(0, 0, src.cols, midRow));
-  // Bottom half: from midRow to end (handles odd heights correctly)
   cv::Mat bottomHalf = src(cv::Rect(0, midRow, src.cols, src.rows - midRow));
 
-  // Array of image halves to process in loop
   cv::Mat halves[] = {topHalf, bottomHalf};
   
-   // Process each half (top, then bottom)
+  // do this for both top and bottom
   for (int h = 0; h < 2; h++) {
-    // Create histogram for current half (8x8x8 = 512 bins)
-    std::vector<float> hist(512, 0);
+    std::vector<float> hist(512, 0); // 8x8x8 = 512 bins
     
-    // Iterate through all pixels in current half
+    // go through every pixel
     for (int y = 0; y < halves[h].rows; y++) {
       for (int x = 0; x < halves[h].cols; x++) {
-        // Get BGR pixel values 
         cv::Vec3b pixel = halves[h].at<cv::Vec3b>(y, x);
 
-        // Map each color channel from [0, 255] to bin index [0, 7]
-        // Divide by 256 instead of 255 to ensure 255 maps to bin 7
-        int r = pixel[2] * bins / 256; //red channel
-        int g = pixel[1] * bins / 256; //green channel
-        int b = pixel[0] * bins / 256; //blue channel
+        // figure out which bin each channel goes in
+        // divide by 256 not 255 so that 255 stays in bin 7
+        int r = pixel[2] * bins / 256; 
+        int g = pixel[1] * bins / 256; 
+        int b = pixel[0] * bins / 256; 
 
-        // Clamp values to valid bin range [0, bins-1] to handle edge case
-        // where pixel value is exactly 255 (255 * 8 / 256 = 7.96875 → rounds to 8)
+        // make sure we don't go out of bounds
+        // (can happen with value 255: 255*8/256 = 7.96 which rounds to 8)
         if (r >= bins) r = bins - 1;
         if (g >= bins) g = bins - 1;
         if (b >= bins) b = bins - 1;
 
-        // Compute 1D index from 3D (r, g, b) coordinates
-        // Formula: r * 64 + g * 8 + b maps (r, g, b) to [0, 511]
-        // This creates a flattened 8x8x8 cube: r varies slowest, b varies fastest
-        hist[r * 64 + g * 8 + b]++;
+        // convert (r,g,b) to a single index in the histogram
+        // basically flattening a 3D array into 1D
+        int index = r * 64 + g * 8 + b; // ranges from 0 to 511
+        hist[index]++;
       }
     }
     
-    // Flatten histogram to feature vector (raw counts, no normalization)
-    // Append all 512 bins from current half to the features vector
+    // add this histogram to our feature vector
     for (int i = 0; i < 512; i++) {
       features.push_back(hist[i]);
     }
   }
+  
+  return 0;
+}
+
+/*
+  Extract Texture and Color Features (Task 4)
+
+  This function combines two types of features: texture (using edges) and color.
+  
+  For texture: we use Sobel edge detection to find gradient magnitudes, then 
+  make a histogram with 16 bins (covering values 0-255)
+  
+  For color: we make an RGB histogram with 8 bins per channel (8*8*8 = 512 bins)
+  
+  Final feature vector has 16 + 512 = 528 total values
+
+  Input:
+    src - input image (cv::Mat), using const to prevent modifying src img (safety)
+    features - output feature vector (std::vector<float>)
+*/
+int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
+  if (src.empty()) return -1;
+  features.clear();
+  
+  // First get texture features from edge detection
+  // need to convert to grayscale first
+  cv::Mat gray;
+  cv::cvtColor(src, gray, cv::COLOR_BGR2GRAY);
+  
+  // run Sobel in both x and y directions
+  cv::Mat sobelX, sobelY;
+  cv::Sobel(gray, sobelX, CV_16S, 1, 0);
+  cv::Sobel(gray, sobelY, CV_16S, 0, 1);
+  
+  // combine the x and y gradients to get magnitude
+  cv::Mat magnitude;
+  cv::Mat absX, absY;
+  cv::convertScaleAbs(sobelX, absX);
+  cv::convertScaleAbs(sobelY, absY);
+  cv::addWeighted(absX, 0.5, absY, 0.5, 0, magnitude);
+  
+  // make a histogram of the edge strengths (16 bins)
+  std::vector<float> texHist(16, 0);
+  for (int y = 0; y < magnitude.rows; y++) {
+    for (int x = 0; x < magnitude.cols; x++) {
+      int val = magnitude.at<uchar>(y, x);
+      int bin = val * 16 / 256;  // converts 0-255 range into 0-15 bins
+      if (bin >= 16) bin = 15;  // safety check
+      texHist[bin]++;
+    }
+  }
+  
+  // put texture histogram into features vector
+  for (int i = 0; i < 16; i++) {
+    features.push_back(texHist[i]);
+  }
+  
+  // now get color features with RGB histogram
+  // same approach as Task 3 but for the whole image
+  std::vector<float> colorHist(512, 0);
+  for (int y = 0; y < src.rows; y++) {
+    for (int x = 0; x < src.cols; x++) {
+      cv::Vec3b pixel = src.at<cv::Vec3b>(y, x);
+      int r = pixel[2] * 8 / 256;  // convert to bin index
+      int g = pixel[1] * 8 / 256;
+      int b = pixel[0] * 8 / 256;
+      if (r >= 8) r = 7; 
+      if (g >= 8) g = 7;
+      if (b >= 8) b = 7;
+      colorHist[r * 64 + g * 8 + b]++;  // flatten into 1D
+    }
+  }
+  
+  // add color histogram after the texture features
+  for (int i = 0; i < 512; i++) {
+    features.push_back(colorHist[i]);
+  }
+  
   return 0;
 }
   

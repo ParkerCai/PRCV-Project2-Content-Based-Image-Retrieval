@@ -19,5 +19,7 @@ int extractRGChromHistogram(const cv::Mat& image, std::vector<float>& features, 
 
 int extractMultiHistogram(const cv::Mat& image, std::vector<float>& features);
 
+int extractTextureAndColor(const cv::Mat& image, std::vector<float>& features);
+
 
 #endif // FEATURES_H

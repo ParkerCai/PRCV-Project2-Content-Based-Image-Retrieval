@@ -98,3 +98,8 @@ cmake --build . --config Release
 - **Distance Metric**: Histogram Intersection with equal weighting (50% top, 50% bottom)
 - **Testing**: .\bin\cbir.exe data\olympus\pic.0274.jpg data\olympus multihistogram
 
+### Task 4: Texture and Color
+
+- **Feature**: Sobel gradient magnitude histogram (16 bins) + RGB color histogram (8x8x8 bins)
+- **Distance Metric**: Histogram Intersection with equal weighting (50% texture, 50% color)
+- **Testing**: .\bin\cbir.exe data\olympus\pic.0535.jpg data\olympus texture
