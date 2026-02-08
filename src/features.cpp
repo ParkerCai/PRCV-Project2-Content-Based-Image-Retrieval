@@ -53,7 +53,7 @@ int extractBaselineFeatures(const cv::Mat& src, std::vector<float>& features) {
 
 
 /*
-  Extract 2D RG Chromaticity Histogram from the image
+  Extract 2D Histogram over RG Chromaticity from the image
 
   Chromaticity removes intensity information, keeping only color ratios:
     r = R / (R + G + B)
@@ -108,7 +108,6 @@ int extractRGChromHistogram(const cv::Mat& src, std::vector<float>& features, in
   
   // loop through histogram and push values to features vector
   for (int i = 0; i < bins; i++) { // r bin
-    // 
     const float* histRowPtr = histogram.ptr<float>(i);
     for (int j = 0; j < bins; j++) { // g bin
       features.push_back(histRowPtr[j]); // push count for the (r, g) bin
@@ -117,6 +116,78 @@ int extractRGChromHistogram(const cv::Mat& src, std::vector<float>& features, in
 
   return 0;
 }
+
+
+/*
+  Extract 3D Histogram over RGB Chromaticity from the image
+
+  Chromaticity removes intensity information, keeping only color ratios:
+    r = R / (R + G + B)
+    g = G / (R + G + B)
+    b = 1 - (r + g)
+
+    r + g + b = 1, so we only need two dimensions (r and g) to represent the chromaticity.
+
+  Input:
+    src - input image (cv::Mat), using const to prevent modifying src img (safety)
+    features - output histogram as flattened vector (bins * bins values)
+    bins - number of bins for each dimension (default 16 bins)
+*/
+int extractRGBChromHistogram(const cv::Mat& src, std::vector<float>& features, int bins) {
+  // Edge case: empty image
+  if (src.empty()) {
+    std::println(stderr, "Error: Empty image for histogram extraction");
+    return -1;
+  }
+
+  // Create 3D histogram (bins x bins x bins) initialized to zero
+  cv::Mat histogram = cv::Mat::zeros(bins, bins * bins, CV_32F); // using 2D Mat to store 3D histogram
+
+  // Iterate through all pixels using row pointers for efficiency
+  for (int i = 0; i < src.rows; i++) {
+    const cv::Vec3b* rowPtr = src.ptr<cv::Vec3b>(i);  // pointer to row i
+    for (int j = 0; j < src.cols; j++) {
+      // get the RGB values
+      float B = rowPtr[j][0];
+      float G = rowPtr[j][1];
+      float R = rowPtr[j][2];
+
+      // compute divisor, handle black pixels
+      float divisor = R + G + B;
+      divisor = divisor > 0.0f ? divisor : 1.0f; // avoid divide by zero
+
+      // compute rgb chromaticity
+      float r = R / divisor; // r, g, b are in [0, 1] range
+      float g = G / divisor;
+      float b = 1.0f - (r + g);  // r + g + b = 1
+
+      // compute bin indices with proper rounding (+0.5)
+      int rIndex = static_cast<int>(r * (bins - 1) + 0.5f);
+      int gIndex = static_cast<int>(g * (bins - 1) + 0.5f);
+      int bIndex = static_cast<int>(b * (bins - 1) + 0.5f);
+
+      // increment histogram bin
+      // Mat is bins rows x (bins*bins) cols, so row = rIndex, col = gIndex*bins+bIndex
+      histogram.at<float>(rIndex, gIndex * bins + bIndex) += 1.0f;
+    }
+  }
+
+  // Flatten 2D histogram to 1D feature vector (raw counts)
+  // normalization is done during histogram intersection
+  features.clear(); // clear the features vector before writing
+  features.reserve(bins * bins * bins); // reserve space to avoid multiple reallocations
+
+  // loop through histogram and push values to features vector
+  for (int i = 0; i < bins; i++) { // r bin (rows)
+    const float* histRowPtr = histogram.ptr<float>(i);
+    for (int j = 0; j < bins * bins; j++) { // g*bins+b (cols)
+      features.push_back(histRowPtr[j]);
+    }
+  }
+
+  return 0;
+}
+
 
 /*
   Multi-Histogram Features (Task 3)

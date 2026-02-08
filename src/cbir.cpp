@@ -28,6 +28,7 @@ enum CBIRExitCode {
 enum FeatureType {
   Baseline,
   RGChromHistogram,
+  RGBChromHistogram,
   MultiHistogram,
   TextureAndColor
 };
@@ -42,13 +43,14 @@ bool isImageFile(const std::filesystem::path& path) {
 /*
   Standard main function with command line arguments for
   Content-based Image Retrieval.
-  
+
   Usage:
   ./cbir.exe <query_image> <image_database_directory> [feature_type]
-  ./cbir.exe data/olympus/pic.0164.jpg data/olympus histogram
+  ./cbir.exe data/olympus/pic.0164.jpg data/olympus rghistogram
   feature_type options:
     baseline  - 7x7 center pixel block (default)
-    histogram - 2D rg chromaticity histogram with intersection
+    rghistogram - 2D rg chromaticity histogram with intersection
+    rgbhistogram - 3D rgb chromaticity histogram with intersection
     multihistogram - multi-histogram with custom distance
     textureandcolor - combined texture and color features with custom distance
 */
@@ -57,7 +59,7 @@ int main(int argc, char* argv[]) {
   // Error handling for missing arguments
   if (argc < 3) {
     std::println("Usage: {} <query_image> <image_database_directory> [feature_type]", argv[0]);
-    std::println("  feature_type: baseline (default), histogram");
+    std::println("  feature_type: baseline (default), rghistogram, rgbhistogram, multihistogram, textureandcolor");
     exit(MissingArg);  // exit with error code
   }
 
@@ -68,13 +70,18 @@ int main(int argc, char* argv[]) {
   FeatureType featureType = Baseline;
   if (argc >= 4) {
     std::string featureArg = argv[3];
-    if (featureArg == "histogram") {
+    if (featureArg == "rghistogram") {
       featureType = RGChromHistogram;
-    } else if (featureArg == "multihistogram") {
+    }
+    else if (featureArg == "rgbhistogram") {
+      featureType = RGBChromHistogram;
+    }
+    else if (featureArg == "multihistogram") {
       featureType = MultiHistogram;
-    } else if (featureArg == "texture") {
+    }
+    else if (featureArg == "texture") {
       featureType = TextureAndColor;
-    }  
+    }
   }
 
   // Read and load the query image
@@ -96,17 +103,24 @@ int main(int argc, char* argv[]) {
   // 3. Extract features from query image
   std::vector<float> queryFeatures;
   int status;
-  
+
   if (featureType == RGChromHistogram) {
     std::println("2D RG Chromaticity Histogram (16x16 bins) with Histogram Intersection");
     status = extractRGChromHistogram(src, queryFeatures, 16);
-  } else if (featureType == MultiHistogram) {
+  }
+  else if (featureType == RGBChromHistogram) {
+    std::println("3D RGB Chromaticity Histogram (8x8x8 bins) with Histogram Intersection");
+    status = extractRGBChromHistogram(src, queryFeatures, 8);
+  }
+  else if (featureType == MultiHistogram) {
     std::println("Multi-histogram");
     status = extractMultiHistogram(src, queryFeatures);
-  } else if (featureType == TextureAndColor) {
+  }
+  else if (featureType == TextureAndColor) {
     std::println("Texture + Color");
     status = extractTextureAndColor(src, queryFeatures);
-  } else {
+  }
+  else {
     std::println("Baseline features (7x7 center block) with SSD");
     status = extractBaselineFeatures(src, queryFeatures);
   }
@@ -132,14 +146,20 @@ int main(int argc, char* argv[]) {
 
     std::vector<float> features;
     int extractStatus;
-    
+
     if (featureType == RGChromHistogram) {
       extractStatus = extractRGChromHistogram(image, features, 16);
-    } else if (featureType == MultiHistogram) {
-      extractStatus = extractMultiHistogram(image, features); 
-    } else if (featureType == TextureAndColor) {
+    }
+    else if (featureType == RGBChromHistogram) {
+      extractStatus = extractRGBChromHistogram(image, features, 8);
+    }
+    else if (featureType == MultiHistogram) {
+      extractStatus = extractMultiHistogram(image, features);
+    }
+    else if (featureType == TextureAndColor) {
       extractStatus = extractTextureAndColor(image, features);
-    } else {
+    }
+    else {
       extractStatus = extractBaselineFeatures(image, features);
     }
 
@@ -152,20 +172,26 @@ int main(int argc, char* argv[]) {
     // compute distance and store it with the filename
     float distance;
     if (featureType == RGChromHistogram) {
-      distance = histogramIntersection(queryFeatures, features);
-    } else if (featureType == MultiHistogram) {
+      distance = histogramIntersectionDistance(queryFeatures, features);
+    }
+    else if (featureType == RGBChromHistogram) {
+      distance = histogramIntersectionDistance(queryFeatures, features);
+    }
+    else if (featureType == MultiHistogram) {
       distance = multiHistogramDistance(queryFeatures, features);
-    } else if (featureType == TextureAndColor) {
-     distance = textureAndColorDistance(queryFeatures, features);
-    } else {
+    }
+    else if (featureType == TextureAndColor) {
+      distance = textureAndColorDistance(queryFeatures, features);
+    }
+    else {
       distance = sumOfSquaredDifference(queryFeatures, features);
     }
-    
+
     distances.push_back(std::make_pair(distance, imageFile)); // {distance, filename} pair
   }
   std::sort(distances.begin(), distances.end());
 
-  // 5. Display top 4 results (query image + top 3 matches)
+  // 4.5 Display top 4 results (query image + top 3 matches)
   std::println("\nTop 4 similar images:");
   for (int i = 0; i < 4 && i < (int)distances.size(); i++) {
     std::filesystem::path p(distances[i].second); // get filename from path

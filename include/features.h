@@ -16,6 +16,7 @@
 // Prototypes
 int extractBaselineFeatures(const cv::Mat& image, std::vector<float>& features);
 int extractRGChromHistogram(const cv::Mat& image, std::vector<float>& features, int bins = 16); // default 16 bins
+int extractRGBChromHistogram(const cv::Mat& image, std::vector<float>& features, int bins = 8); // default 8 bins for 3D histogram
 
 int extractMultiHistogram(const cv::Mat& image, std::vector<float>& features);
 

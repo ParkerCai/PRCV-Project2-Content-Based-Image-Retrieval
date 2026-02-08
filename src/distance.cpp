@@ -41,6 +41,7 @@ float sumOfSquaredDifference(const std::vector<float>& featuresA,
   Histogram Intersection Distance
   - Measures similarity between two histograms
   - Formula: intersection = Σ min(Aᵢ, Bᵢ) for normalized histograms
+             distance = 1 - intersection (identical histograms have distance 0, no overlap has distance 1)
   - Returns (1 - intersection) so smaller values = more similar
   - Normalizes histograms before comparison
 
@@ -51,14 +52,14 @@ float sumOfSquaredDifference(const std::vector<float>& featuresA,
   Output:
     float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
 */
-float histogramIntersection(const std::vector<float>& histA,
+float histogramIntersectionDistance(const std::vector<float>& histA,
   const std::vector<float>& histB) {
   // Check for size mismatch
   if (histA.size() != histB.size() || histA.empty()) {
     return 1.0f;  // Maximum distance if invalid input
   }
 
-  // Compute sums for normalization
+  // Compute sums for normalization (sum of buckets)
   float sumA = 0.0f, sumB = 0.0f;
   for (size_t i = 0; i < histA.size(); i++) {
     sumA += histA[i];
@@ -83,6 +84,7 @@ float histogramIntersection(const std::vector<float>& histA,
   return 1.0f - intersection;
 }
 
+
 /*
   Multi-Histogram Distance (Task 3)
   - Compares two multi-histogram features using histogram intersection
@@ -101,14 +103,14 @@ float histogramIntersection(const std::vector<float>& histA,
 float multiHistogramDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
   // Check for size mismatch - both must be exactly 1024 bins
   if (f1.size() != 1024 || f2.size() != 1024) return 1.0f;
-  
+
   // Compute sums for normalization of top half histograms
   float sum1_top = 0, sum2_top = 0;
   for (int i = 0; i < 512; i++) {
     sum1_top += f1[i];
     sum2_top += f2[i];
   }
-  
+
   // Compute normalized histogram intersection for top half
   float intersect_top = 0;
   for (int i = 0; i < 512; i++) {
@@ -125,7 +127,7 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
     sum1_bot += f1[i];
     sum2_bot += f2[i];
   }
-  
+
   // Compute normalized histogram intersection for bottom half
   float intersect_bot = 0;
   for (int i = 512; i < 1024; i++) {
@@ -135,7 +137,7 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
     // Accumulate minimum of normalized values (intersection measure)
     intersect_bot += std::min(n1, n2);
   }
-  
+
   // Average the intersection values from both regions
   // This gives equal weight to top and bottom halves
   float avg = (intersect_top + intersect_bot) / 2.0f;
@@ -143,6 +145,7 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
   // Return distance (1 - average intersection)
   return 1.0f - avg;
 }
+
 
 /*
   Texture and Color Distance (Task 4)
@@ -161,7 +164,7 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
 float textureAndColorDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
   // Check for size mismatch
   if (f1.size() != 528 || f2.size() != 528) return 1.0f;
-  
+
   // Part 1: Compare texture histograms (first 16 values)
   // Compute sums for normalization
   float sum1_t = 0, sum2_t = 0;
@@ -169,13 +172,13 @@ float textureAndColorDistance(const std::vector<float>& f1, const std::vector<fl
     sum1_t += f1[i];
     sum2_t += f2[i];
   }
-  
+
   // Compute normalized histogram intersection for texture
   float intersect_t = 0;
   for (int i = 0; i < 16; i++) {
-    intersect_t += std::min(f1[i]/sum1_t, f2[i]/sum2_t);
+    intersect_t += std::min(f1[i] / sum1_t, f2[i] / sum2_t);
   }
-  
+
   // Part 2: Compare color histograms (next 512 values)
   // Compute sums for normalization
   float sum1_c = 0, sum2_c = 0;
@@ -183,13 +186,13 @@ float textureAndColorDistance(const std::vector<float>& f1, const std::vector<fl
     sum1_c += f1[i];
     sum2_c += f2[i];
   }
-  
+
   // Compute normalized histogram intersection for color
   float intersect_c = 0;
   for (int i = 16; i < 528; i++) {
-    intersect_c += std::min(f1[i]/sum1_c, f2[i]/sum2_c);
+    intersect_c += std::min(f1[i] / sum1_c, f2[i] / sum2_c);
   }
-  
+
   // Combine with equal weighting (average of the two intersections)
   float avg = (intersect_t + intersect_c) / 2.0f;
   return 1.0f - avg;
