@@ -103,3 +103,10 @@ cmake --build . --config Release
 - **Feature**: Sobel gradient magnitude histogram (16 bins) + RGB color histogram (8x8x8 bins)
 - **Distance Metric**: Histogram Intersection with equal weighting (50% texture, 50% color)
 - **Testing**: .\bin\cbir.exe data\olympus\pic.0535.jpg data\olympus texture
+
+### Task 5: DNN Embedding Matching
+
+- **Feature**: DNN embedding (512-dimensional vector)
+- **Distance Metric**: Cosine distance: d(vA, vB) = 1 - cos(theta) 
+- **Testing1(fire hydrant)**: .\bin\cbir.exe data\olympus\pic.0893.jpg data\olympus dnnembedding data\ResNet18_olym.csv
+- **Testing2**: .\bin\cbir.exe data\olympus\pic.0164.jpg data\olympus dnnembedding data\ResNet18_olym.csv

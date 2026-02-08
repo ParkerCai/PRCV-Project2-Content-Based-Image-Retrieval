@@ -27,6 +27,9 @@ float multiHistogramDistance(const std::vector<float>& features1,
 //texture and color distance function 
 float textureAndColorDistance(const std::vector<float>& f1,
   const std::vector<float>& f2);
-  
+
+// cosine distance for DNN embeddings
+float cosineDistance(const std::vector<float>& vA,
+  const std::vector<float>& vB);
 
 #endif // DISTANCE_H

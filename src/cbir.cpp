@@ -17,7 +17,8 @@
 #include <opencv2/opencv.hpp>
 #include "features.h"
 #include "distance.h"
-// TODO: include csv_util for reading directory
+#include "csv_util/csv_util.h"  // for reading csv files
+#include "unordered_map"  // for storing image features O(1) lookup
 
 enum CBIRExitCode {
   Success = 0,
@@ -30,13 +31,27 @@ enum FeatureType {
   RGChromHistogram,
   RGBChromHistogram,
   MultiHistogram,
-  TextureAndColor
+  TextureAndColor,
+  DNNEmbedding
 };
 
 // Helper function to check if a file is an image based on extension
 bool isImageFile(const std::filesystem::path& path) {
   std::string ext = path.extension().string();
   return ext == ".jpg" || ext == ".png" || ext == ".ppm" || ext == ".tif";
+}
+
+// Helper function to the embedding for a filename from the csv file
+std::vector<float> getEmbedding(
+  const std::string& filename, 
+  const std::unordered_map<std::string, int>& lookupIndex,
+  const std::vector<std::vector<float>>& embeddings) {
+  // Fast method: O(1) lookup with hash map, using auto keyword to infer type
+  auto it = lookupIndex.find(filename);  // search for key
+  if (it == lookupIndex.end()) {  // not found
+    return {};  // return empty vector
+  }
+  return embeddings[it->second];  // use the [2nd] index to get the embedding
 }
 
 
@@ -53,6 +68,7 @@ bool isImageFile(const std::filesystem::path& path) {
     rgbhistogram - 3D rgb chromaticity histogram with intersection
     multihistogram - multi-histogram with custom distance
     textureandcolor - combined texture and color features with custom distance
+    dnnembedding - DNN embedding with cosine distance
 */
 int main(int argc, char* argv[]) {
   // 1. parse command line arguments
@@ -79,8 +95,16 @@ int main(int argc, char* argv[]) {
     else if (featureArg == "multihistogram") {
       featureType = MultiHistogram;
     }
-    else if (featureArg == "texture") {
+    else if (featureArg == "textureandcolor") {
       featureType = TextureAndColor;
+    }
+    else if (featureArg == "dnnembedding") {
+      featureType = DNNEmbedding;
+      // requires a csv file
+      if (argc < 5) {
+        std::println(stderr, "Error: Missing csv file for DNN embedding");
+        exit(MissingArg);
+      } 
     }
   }
 
@@ -92,6 +116,7 @@ int main(int argc, char* argv[]) {
     exit(ImageLoadFailed);
   }
 
+
   // 2. Read directory
   std::vector<std::string> imageFiles;
   for (const auto& entry : std::filesystem::directory_iterator(imageDir)) {
@@ -99,6 +124,13 @@ int main(int argc, char* argv[]) {
       imageFiles.push_back(entry.path().string());
     }
   }
+
+
+  // For DNN: load embeddings from CSV file
+  // use the csv util to read the csv file
+  std::vector<char*> csvFilenames;
+  std::vector<std::vector<float>> csvEmbeddings;
+  std::unordered_map<std::string, int> csvLookupIndex;  // just store the index of each filename
 
   // 3. Extract features from query image
   std::vector<float> queryFeatures;
@@ -120,6 +152,47 @@ int main(int argc, char* argv[]) {
     std::println("Texture + Color");
     status = extractTextureAndColor(src, queryFeatures);
   }
+  else if (featureType == DNNEmbedding) {
+    // read the csv file using the csv util
+    int csvStatus = read_image_data_csv(argv[4], csvFilenames, csvEmbeddings, 0);
+    if (csvStatus != 0) {
+      std::println(stderr, "Error: Failed to read CSV file {}", argv[4]);
+      exit(ImageLoadFailed);
+    }
+    std::println("Loaded {} embeddings from CSV", (int)csvFilenames.size());
+
+    // build a lookup map for the csv file
+    for (int i = 0; i < csvFilenames.size(); i++) {
+      csvLookupIndex[csvFilenames[i]] = i; // just the index to save memory
+    }
+
+    // find the index of the query image in the csv file
+    // get just the filename from the query path
+    std::filesystem::path queryPath(argv[1]); // full path: data/olympus/pic.0164.jpg
+    std::string queryFilename = queryPath.filename().string(); // get just the filename: pic.0164.jpg
+
+    // Slow method: O(n) lookup
+    // bool found = false;
+    // for (int i = 0; i < csvFilenames.size(); i++) {
+    //   if (strcmp(csvFilenames[i], queryFilename.c_str()) == 0) {
+    //     queryFeatures = csvEmbeddings[i];  // assign directly
+    //     found = true;
+    //     break;
+    //   }
+    // }
+    // if (!found) {
+    //   std::println(stderr, "Error: Query image {} not found in CSV file", queryFilename);
+    //   exit(ImageLoadFailed);
+    // }
+
+    // Fast method: O(1) lookup with hash map, using auto keyword to infer type
+    queryFeatures = getEmbedding(queryFilename, csvLookupIndex, csvEmbeddings);
+    if (queryFeatures.empty()) {  // not found
+      std::println(stderr, "Error: Query image {} not found in CSV file", queryFilename);
+      exit(ImageLoadFailed);
+    }
+    status = 0;
+  }
   else {
     std::println("Baseline features (7x7 center block) with SSD");
     status = extractBaselineFeatures(src, queryFeatures);
@@ -130,6 +203,7 @@ int main(int argc, char* argv[]) {
     std::println(stderr, "Error: Failed to extract features from query image");
     exit(ImageLoadFailed);
   }
+
 
   // 4. Sort images by distance
   std::vector<std::pair<float, std::string>> distances;
@@ -159,6 +233,15 @@ int main(int argc, char* argv[]) {
     else if (featureType == TextureAndColor) {
       extractStatus = extractTextureAndColor(image, features);
     }
+    else if (featureType == DNNEmbedding) {
+      // get the filename from the image path
+      std::filesystem::path imagePath(imageFile);
+      std::string imageFilename = imagePath.filename().string();
+
+      // O(1) lookup in hash map
+      features = getEmbedding(imageFilename, csvLookupIndex, csvEmbeddings);
+      extractStatus = features.empty() ? -1 : 0;
+    }
     else {
       extractStatus = extractBaselineFeatures(image, features);
     }
@@ -182,6 +265,9 @@ int main(int argc, char* argv[]) {
     }
     else if (featureType == TextureAndColor) {
       distance = textureAndColorDistance(queryFeatures, features);
+    }
+    else if (featureType == DNNEmbedding) {
+      distance = cosineDistance(queryFeatures, features);
     }
     else {
       distance = sumOfSquaredDifference(queryFeatures, features);

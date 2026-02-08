@@ -197,3 +197,47 @@ float textureAndColorDistance(const std::vector<float>& f1, const std::vector<fl
   float avg = (intersect_t + intersect_c) / 2.0f;
   return 1.0f - avg;
 }
+
+
+/*
+  Cosine Distance (Task 5)
+  - Compares two feature vectors using cosine similarity
+  - Formula: d(vA, vB) = 1 - cos(theta) 
+             where theta is the angle between the two vectors.
+             distance = 1 - (dot_product(a, b) / (norm(a) * norm(b)))
+             where norm(a) is the Euclidean norm of vector a
+
+  - Returns cosine-distance (smaller values = more similar)
+
+  Input:
+    vA - first feature vector (std::vector<float>)
+    vB - second feature vector (std::vector<float>)
+
+  Output:
+    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+*/
+float cosineDistance(const std::vector<float>& vA,
+                     const std::vector<float>& vB) {
+    // Check for size mismatch
+    if (vA.size() != vB.size()) return 1.0f;
+
+    // Compute dot product and Euclidean norms
+    float dotProduct = 0.0f;
+    float normA = 0.0f, normB = 0.0f;
+    for (size_t i = 0; i < vA.size(); i++) {
+        dotProduct += vA[i] * vB[i];
+        normA += vA[i] * vA[i];
+        normB += vB[i] * vB[i];
+    }
+
+    // Handle division by zero
+    if (normA < 1.0f || normB < 1.0f) return 1.0f;
+
+    // normA = std::sqrt(normA);
+    // normB = std::sqrt(normB); // faster to do this in one step
+    float normAB = std::sqrt(normA * normB);
+    
+    // Compute cosine similarity
+    float similarity = dotProduct / normAB;
+    return 1.0f - similarity;
+}
