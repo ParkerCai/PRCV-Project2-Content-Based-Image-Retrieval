@@ -143,3 +143,54 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
   // Return distance (1 - average intersection)
   return 1.0f - avg;
 }
+
+/*
+  Texture and Color Distance (Task 4)
+  - Compares both texture and color features using histogram intersection
+  - Uses equal weighting: 50% texture similarity + 50% color similarity
+  - Formula: distance = 1 - ((texture_intersection + color_intersection) / 2)
+  - Normalizes each histogram separately before comparison
+
+  Input:
+    f1 - first feature vector (528 values: 16 texture + 512 color)
+    f2 - second feature vector (528 values: 16 texture + 512 color)
+
+  Output:
+    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+*/
+float textureAndColorDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
+  // Check for size mismatch
+  if (f1.size() != 528 || f2.size() != 528) return 1.0f;
+  
+  // Part 1: Compare texture histograms (first 16 values)
+  // Compute sums for normalization
+  float sum1_t = 0, sum2_t = 0;
+  for (int i = 0; i < 16; i++) {
+    sum1_t += f1[i];
+    sum2_t += f2[i];
+  }
+  
+  // Compute normalized histogram intersection for texture
+  float intersect_t = 0;
+  for (int i = 0; i < 16; i++) {
+    intersect_t += std::min(f1[i]/sum1_t, f2[i]/sum2_t);
+  }
+  
+  // Part 2: Compare color histograms (next 512 values)
+  // Compute sums for normalization
+  float sum1_c = 0, sum2_c = 0;
+  for (int i = 16; i < 528; i++) {
+    sum1_c += f1[i];
+    sum2_c += f2[i];
+  }
+  
+  // Compute normalized histogram intersection for color
+  float intersect_c = 0;
+  for (int i = 16; i < 528; i++) {
+    intersect_c += std::min(f1[i]/sum1_c, f2[i]/sum2_c);
+  }
+  
+  // Combine with equal weighting (average of the two intersections)
+  float avg = (intersect_t + intersect_c) / 2.0f;
+  return 1.0f - avg;
+}
