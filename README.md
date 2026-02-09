@@ -102,7 +102,7 @@ cmake --build . --config Release
 
 - **Feature**: Sobel gradient magnitude histogram (16 bins) + RGB color histogram (8x8x8 bins)
 - **Distance Metric**: Histogram Intersection with equal weighting (50% texture, 50% color)
-- **Testing**: .\bin\cbir.exe data\olympus\pic.0535.jpg data\olympus texture
+- **Testing**: .\bin\cbir.exe data\olympus\pic.0535.jpg data\olympus textureandcolor
 
 ### Task 5: DNN Embedding Matching
 
@@ -110,3 +110,18 @@ cmake --build . --config Release
 - **Distance Metric**: Cosine distance: d(vA, vB) = 1 - cos(theta) 
 - **Testing1(fire hydrant)**: .\bin\cbir.exe data\olympus\pic.0893.jpg data\olympus dnnembedding data\ResNet18_olym.csv
 - **Testing2**: .\bin\cbir.exe data\olympus\pic.0164.jpg data\olympus dnnembedding data\ResNet18_olym.csv
+
+
+### Task 7: Custom Distance for Portrait Matching
+
+- **Feature**: Combined feature vector (529 dimensions)
+  - DNN embedding (512 values)
+  - Skin tone histogram (16 bins)
+  - Brightness value (1 value)
+- **Distance Metric**: Weighted combination
+  - 70% DNN cosine distance
+  - 20% Skin tone histogram intersection
+  - 10% Brightness absolute difference
+- **Testing**: 
+  - Portrait: .\bin\cbir.exe data\olympus\pic.0607.jpg data\olympus custom
+  - Basketball: .\bin\cbir.exe data\olympus\pic.0280.jpg data\olympus custom

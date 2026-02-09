@@ -32,7 +32,8 @@ enum FeatureType {
   RGBChromHistogram,
   MultiHistogram,
   TextureAndColor,
-  DNNEmbedding
+  DNNEmbedding,
+  CustomDesign
 };
 
 // Helper function to check if a file is an image based on extension
@@ -69,13 +70,14 @@ std::vector<float> getEmbedding(
     multihistogram - multi-histogram with custom distance
     textureandcolor - combined texture and color features with custom distance
     dnnembedding - DNN embedding with cosine distance
+    customdesign - custom features and distance function 
 */
 int main(int argc, char* argv[]) {
   // 1. parse command line arguments
   // Error handling for missing arguments
   if (argc < 3) {
     std::println("Usage: {} <query_image> <image_database_directory> [feature_type]", argv[0]);
-    std::println("  feature_type: baseline (default), rghistogram, rgbhistogram, multihistogram, textureandcolor");
+    std::println("  feature_type: baseline (default), rghistogram, rgbhistogram, multihistogram, textureandcolor, customdesign, dnnembedding");
     exit(MissingArg);  // exit with error code
   }
 
@@ -106,7 +108,11 @@ int main(int argc, char* argv[]) {
         exit(MissingArg);
       } 
     }
+    else if (featureArg == "custom") {
+      featureType = CustomDesign;
+    }
   }
+  
 
   // Read and load the query image
   src = cv::imread(argv[1]);
@@ -193,6 +199,35 @@ int main(int argc, char* argv[]) {
     }
     status = 0;
   }
+  else if (featureType == CustomDesign) {
+    // read the csv file using the csv util (ONCE)
+    int csvStatus = read_image_data_csv(const_cast<char*>("data/ResNet18_olym.csv"), csvFilenames, csvEmbeddings, 0);
+    if (csvStatus != 0) {
+      std::println(stderr, "Error: Failed to read CSV file");
+      exit(ImageLoadFailed);
+    }
+    std::println("Loaded {} embeddings from CSV", (int)csvFilenames.size());
+
+    // build lookup map
+    for (int i = 0; i < csvFilenames.size(); i++) {
+      csvLookupIndex[csvFilenames[i]] = i;
+    }
+
+    std::println("Custom (DNN + skin + brightness)");
+    
+    // Get query embedding
+    std::filesystem::path queryPath(argv[1]);
+    std::string queryFilename = queryPath.filename().string();
+    std::vector<float> queryEmbedding = getEmbedding(queryFilename, csvLookupIndex, csvEmbeddings);
+    
+    if (queryEmbedding.empty()) {
+      std::println(stderr, "Error: Query image {} not found in CSV", queryFilename);
+      exit(ImageLoadFailed);
+    }
+  
+  // Extract custom features
+   status = extractCustomFeaturesWithEmbedding(src, queryEmbedding, queryFeatures);
+  }
   else {
     std::println("Baseline features (7x7 center block) with SSD");
     status = extractBaselineFeatures(src, queryFeatures);
@@ -241,7 +276,19 @@ int main(int argc, char* argv[]) {
       // O(1) lookup in hash map
       features = getEmbedding(imageFilename, csvLookupIndex, csvEmbeddings);
       extractStatus = features.empty() ? -1 : 0;
-    }
+    } 
+    else if (featureType == CustomDesign) {
+      // Get embedding for this image
+      std::filesystem::path imagePath(imageFile);
+      std::string imageFilename = imagePath.filename().string();
+      std::vector<float> imgEmbedding = getEmbedding(imageFilename, csvLookupIndex, csvEmbeddings);
+      
+      if (imgEmbedding.empty()) {
+        extractStatus = -1;
+      } else {
+        extractStatus = extractCustomFeaturesWithEmbedding(image, imgEmbedding, features);
+      }
+  }
     else {
       extractStatus = extractBaselineFeatures(image, features);
     }
@@ -268,6 +315,9 @@ int main(int argc, char* argv[]) {
     }
     else if (featureType == DNNEmbedding) {
       distance = cosineDistance(queryFeatures, features);
+    }
+    else if (featureType == CustomDesign) {
+      distance = customDistance(queryFeatures, features);
     }
     else {
       distance = sumOfSquaredDifference(queryFeatures, features);

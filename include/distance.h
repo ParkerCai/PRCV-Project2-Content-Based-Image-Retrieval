@@ -32,4 +32,7 @@ float textureAndColorDistance(const std::vector<float>& f1,
 float cosineDistance(const std::vector<float>& vA,
   const std::vector<float>& vB);
 
+// custom feature distance function   
+float customDistance(const std::vector<float>& f1, const std::vector<float>& f2);
+
 #endif // DISTANCE_H

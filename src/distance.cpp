@@ -86,19 +86,12 @@ float histogramIntersectionDistance(const std::vector<float>& histA,
 
 
 /*
-  Multi-Histogram Distance (Task 3)
-  - Compares two multi-histogram features using histogram intersection
-  - Computes intersection separately for top and bottom halves
-  - Uses equal weighting: 50% top half, 50% bottom half
-  - Formula: distance = 1 - ((intersect_top + intersect_bot) / 2)
-  - Normalizes each histogram before comparison
-
-  Input:
-    f1 - first feature vector (1024 values: 512 top + 512 bottom)
-    f2 - second feature vector (1024 values: 512 top + 512 bottom)
-
-  Output:
-    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+  Multi-Histogram Distance 
+  Compares top and bottom halves of the image separately
+  
+  f1, f2 - 1024 bin histograms (512 for top half, 512 for bottom)
+  Uses histogram intersection on each half then averages them
+  Returns distance where 0 = same image, 1 = totally different
 */
 float multiHistogramDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
   // Check for size mismatch - both must be exactly 1024 bins
@@ -148,18 +141,12 @@ float multiHistogramDistance(const std::vector<float>& f1, const std::vector<flo
 
 
 /*
-  Texture and Color Distance (Task 4)
-  - Compares both texture and color features using histogram intersection
-  - Uses equal weighting: 50% texture similarity + 50% color similarity
-  - Formula: distance = 1 - ((texture_intersection + color_intersection) / 2)
-  - Normalizes each histogram separately before comparison
-
-  Input:
-    f1 - first feature vector (528 values: 16 texture + 512 color)
-    f2 - second feature vector (528 values: 16 texture + 512 color)
-
-  Output:
-    float - distance value in range [0, 1] (0 = identical, 1 = no overlap)
+  Texture and Color Distance
+  Combines texture histogram (16 bins) and color histogram (512 bins)
+  Uses histogram intersection on each part, then averages the results
+  
+  f1, f2 - feature vectors (528 floats each)
+  returns distance [0,1] where 0 = identical
 */
 float textureAndColorDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
   // Check for size mismatch
@@ -200,7 +187,7 @@ float textureAndColorDistance(const std::vector<float>& f1, const std::vector<fl
 
 
 /*
-  Cosine Distance (Task 5)
+  Cosine Distance 
   - Compares two feature vectors using cosine similarity
   - Formula: d(vA, vB) = 1 - cos(theta) 
              where theta is the angle between the two vectors.
@@ -240,4 +227,45 @@ float cosineDistance(const std::vector<float>& vA,
     // Compute cosine similarity
     float similarity = dotProduct / normAB;
     return 1.0f - similarity;
+}
+
+/*
+  Custom Distance for Face Portrait Matching 
+  
+  Combines DNN features (512 values), skin histogram (16), and brightness (1)
+  Weights: 70% for DNN cosine distance, 20% skin tone, 10% brightness
+  Returns combined distance - lower means better match
+*/
+
+float customDistance(const std::vector<float>& f1, const std::vector<float>& f2) {
+  
+  // cosine distance on DNN features
+  float dot = 0, mag1 = 0, mag2 = 0;
+  for (int i = 0; i < 512; i++) {
+    dot += f1[i] * f2[i];
+    mag1 += f1[i] * f1[i];
+    mag2 += f2[i] * f2[i];
+  }
+  
+  float similarity = dot / (sqrt(mag1) * sqrt(mag2));
+  similarity = std::min(similarity, 1.0f);  // clamp to avoid -0
+  float dnn_dist = 1.0 - similarity;
+  
+  // skin tone histogram comparison
+  float s1 = 0, s2 = 0;
+  for (int i = 512; i < 528; i++) {
+    s1 += f1[i];
+    s2 += f2[i];
+  }
+  float inter = 0;
+  for (int i = 512; i < 528; i++) {
+    inter += std::min(f1[i]/s1, f2[i]/s2);
+  }
+  float skin_dist = 1.0 - inter;
+  
+  // brightness
+  float bright_dist = std::abs(f1[528] - f2[528]) / 255.0;
+  
+  // weighted combo - tweaked these to get better results
+  return 0.7 * dnn_dist + 0.2 * skin_dist + 0.1 * bright_dist;
 }
