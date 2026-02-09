@@ -387,7 +387,7 @@ int extractOrientedGradientHistogram(const cv::Mat& src, std::vector<float>& fea
       float mag = sqrt(gx*gx + gy*gy);
       
       if (mag > 10.0f) {  // threshold out noise
-        float angle = atan2(gy, gx) * 180.0 / M_PI;
+        float angle = atan2(gy, gx) * 180.0 / 3.14159f; //Multiply by 180 and divide by π
         if (angle < 0) angle += 360;
         
         int bin = (int)(angle / 45.0);
