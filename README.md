@@ -125,3 +125,9 @@ cmake --build . --config Release
 - **Testing**: 
   - Portrait: .\bin\cbir.exe data\olympus\pic.0607.jpg data\olympus custom
   - Basketball: .\bin\cbir.exe data\olympus\pic.0280.jpg data\olympus custom
+
+### Extension: Orientation Gradient Histogram
+
+- **Feature**: 8-bin histogram of edge directions (8 dimensions)
+- **Distance Metric**: Histogram Intersection
+- **Testing**: .\bin\cbir.exe data\olympus\pic.0462.jpg data\olympus gradient

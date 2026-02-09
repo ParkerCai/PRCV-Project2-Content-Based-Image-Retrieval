@@ -24,4 +24,6 @@ int extractTextureAndColor(const cv::Mat& image, std::vector<float>& features);
 
 int extractCustomFeaturesWithEmbedding(const cv::Mat& image, const std::vector<float>& embedding, std::vector<float>& features);
 
+int extractOrientedGradientHistogram(const cv::Mat& image, std::vector<float>& features);
+
 #endif // FEATURES_H
