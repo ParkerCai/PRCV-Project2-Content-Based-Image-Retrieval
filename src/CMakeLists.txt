@@ -66,6 +66,7 @@ set(IMGUI_SOURCES
 add_executable(cbir cbir.cpp ${SOURCES})
 target_link_libraries(cbir ${OpenCV_LIBS})
 
-# CBIR GUI program
-add_executable(cbir_gui gui/cbir_gui.cpp gui/app_icon.rc ${SOURCES} ${IMGUI_SOURCES})
+# CBIR GUI program (WIN32 hides console window)
+add_executable(cbir_gui WIN32 gui/cbir_gui.cpp gui/app_icon.rc ${SOURCES} ${IMGUI_SOURCES})
 target_link_libraries(cbir_gui ${OpenCV_LIBS} glfw OpenGL::GL dwmapi)
+set_target_properties(cbir_gui PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")

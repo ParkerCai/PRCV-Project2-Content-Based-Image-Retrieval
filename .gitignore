@@ -1,6 +1,7 @@
 # Build outputs
 build/
 bin/
+release/
 
 # Generated feature files
 features/*.csv
@@ -18,6 +19,9 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+# ImGui settings
+imgui.ini
 
 # Temporary files
 *.tmp

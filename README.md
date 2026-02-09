@@ -32,23 +32,29 @@ The process can be generally described as the following four steps.
 Project_2_Content_based_Image_Retrieval/
 ├── bin/                    # Executables (auto-generated)
 ├── build/                  # CMake build files (auto-generated)
+├── release/                # Distribution packages (auto-generated)
 ├── data/   
-│   └── olympus/            # Image database (1107 images)
+│   ├── olympus/            # Image database (1107 images)
+│   └── ResNet18_olym.csv   # DNN embeddings for olympus images
 ├── features/               # Pre-computed feature CSV files
 ├── include/                # Header files
-│   ├── features.h          # Feature extraction declarations (prototypes)
-│   └── distance.h          # Distance metric declarations (prototypes)
+│   ├── features.h          # Feature extraction declarations
+│   └── distance.h          # Distance metric declarations
 ├── src/                    # Source files
 │   ├── CMakeLists.txt      # Build configuration
-│   ├── CMakePresets.json   # CMake presets for VS Code
-|   ├── cbir.cpp            # Main Program
-│   ├── features.cpp        # TODO: Implement feature extraction
-│   ├── distance.cpp        # TODO: Implement distance metrics
+│   ├── cbir.cpp            # CLI program
+│   ├── features.cpp        # Feature extraction implementation
+│   ├── distance.cpp        # Distance metrics implementation
 │   ├── csv_util/           # CSV utilities
 │   │   ├── csv_util.h
 │   │   └── csv_util.cpp
-│   └── readfiles.cpp       # Instructor's directory reading example
-├── report/                 # Report documents (gdocs and pdf)
+│   └── gui/                # Dear ImGui GUI application
+│       ├── cbir_gui.cpp    # GUI main source
+│       ├── app_icon.ico    # Windows executable icon
+│       └── app_icon.rc     # Windows resource file
+├── report/                 # Report documents
+├── build.bat               # Build script
+├── package_release.bat     # Release packaging script
 └── README.md
 ```
 

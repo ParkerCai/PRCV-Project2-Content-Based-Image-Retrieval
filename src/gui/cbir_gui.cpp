@@ -370,8 +370,8 @@ void renderLeftPanel(float totalHeight) {
   ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("(or drag & drop)").x + ImGui::GetCursorPosX());
   ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "(or drag & drop)");
 
-  float browseWidth = 80 * g_app.dpiScale;
-  float pathFieldWidth = ImGui::GetContentRegionAvail().x - browseWidth;
+  float buttonColWidth = ImGui::CalcTextSize("Set Directory").x + ImGui::GetStyle().FramePadding.x * 2 + ImGui::GetStyle().ItemSpacing.x;
+  float pathFieldWidth = ImGui::GetContentRegionAvail().x - buttonColWidth;
   std::string truncPath = truncatePathMiddle(g_app.queryImagePath, pathFieldWidth - ImGui::GetStyle().FramePadding.x * 2);
   ImGui::SetNextItemWidth(pathFieldWidth);
   char truncBuf[512];
@@ -381,7 +381,7 @@ void renderLeftPanel(float totalHeight) {
   if (ImGui::IsItemHovered() && g_app.queryImagePath[0] != '\0')
     ImGui::SetTooltip("%s", g_app.queryImagePath);
   ImGui::SameLine();
-  if (ImGui::Button("Browse...")) {
+  if (ImGui::Button("Browse...", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
     std::string path = openFileDialog();
     if (!path.empty()) {
       loadQueryImage(path);
@@ -392,10 +392,12 @@ void renderLeftPanel(float totalHeight) {
   // Database Directory
   ImGui::Spacing();
   ImGui::Text("Database:");
-  ImGui::SetNextItemWidth(-80 * g_app.dpiScale);
+  ImGui::SameLine(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("(point to your image library)").x + ImGui::GetCursorPosX());
+  ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.4f, 1.0f), "(point to your image library)");
+  ImGui::SetNextItemWidth(-buttonColWidth);
   ImGui::InputText("##dbpath", g_app.imageDatabaseDir, sizeof(g_app.imageDatabaseDir));
   ImGui::SameLine();
-  if (ImGui::Button("Browse##db")) {
+  if (ImGui::Button("Set Directory##db", ImVec2(ImGui::GetContentRegionAvail().x, 0))) {
     std::string path = openFolderDialog();
     if (!path.empty())
       strncpy(g_app.imageDatabaseDir, path.c_str(), sizeof(g_app.imageDatabaseDir) - 1);
@@ -559,6 +561,12 @@ void renderUI() {
 // ============================================================================
 
 int main(int argc, char* argv[]) {
+  // Set working directory to exe's folder so relative paths work when double-clicking
+  std::filesystem::path exePath(argv[0]);
+  if (exePath.has_parent_path()) {
+    std::filesystem::current_path(exePath.parent_path());
+  }
+
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { std::println(stderr, "Failed to initialize GLFW"); return 1; }
 
@@ -591,7 +599,7 @@ int main(int argc, char* argv[]) {
 
   // Window icon
   {
-    cv::Mat iconImg = cv::imread("gui/app_icon.png", cv::IMREAD_UNCHANGED);
+    cv::Mat iconImg = cv::imread("src/gui/app_icon.png", cv::IMREAD_UNCHANGED);
     if (iconImg.empty())
       iconImg = cv::imread(std::filesystem::path(argv[0]).parent_path().string() + "/../src/gui/app_icon.png", cv::IMREAD_UNCHANGED);
     if (!iconImg.empty()) {
