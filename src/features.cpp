@@ -10,6 +10,8 @@
 #include "features.h"
 #include <iostream>
 #include <print>  // for modern C++ printing (C++23)
+#include "csv_util/csv_util.h"
+#include <filesystem>
 
 
 /*
@@ -190,20 +192,12 @@ int extractRGBChromHistogram(const cv::Mat& src, std::vector<float>& features, i
 
 
 /*
-  Multi-Histogram Features (Task 3)
+  Multi-Histogram Features
   
-  Splits the image in half (top/bottom) and makes a separate RGB histogram 
-  for each half. This way we get color info AND some spatial info about 
-  where colors appear in the image.
+  Splits image horizontally and makes RGB histogram for top and bottom separately
+  This captures color distribution plus some spatial info
   
-  Each histogram uses 8 bins per channel (R,G,B) = 8*8*8 = 512 bins
-  So total we have 512 values for top half + 512 for bottom = 1024 features
-  
-  Input:
-    src - input image (cv::Mat)
-    features - output feature vector (std::vector<float>)
-
-  Returns: 0 if success, -1 if error
+  512 bins per half (8*8*8), 1024 total
 */
 int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
 
@@ -218,12 +212,10 @@ int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
   int midRow = src.rows / 2;
   
   // cv::Rect is (x, y, width, height)
-  cv::Mat topHalf = src(cv::Rect(0, 0, src.cols, midRow));
-  cv::Mat bottomHalf = src(cv::Rect(0, midRow, src.cols, src.rows - midRow));
-
-  cv::Mat halves[] = {topHalf, bottomHalf};
+  cv::Mat top = src(cv::Rect(0, 0, src.cols, midRow));
+  cv::Mat bottom = src(cv::Rect(0, midRow, src.cols, src.rows - midRow));
+  cv::Mat halves[] = {top, bottom};
   
-  // do this for both top and bottom
   for (int h = 0; h < 2; h++) {
     std::vector<float> hist(512, 0); // 8x8x8 = 512 bins
     
@@ -232,22 +224,16 @@ int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
       for (int x = 0; x < halves[h].cols; x++) {
         cv::Vec3b pixel = halves[h].at<cv::Vec3b>(y, x);
 
-        // figure out which bin each channel goes in
-        // divide by 256 not 255 so that 255 stays in bin 7
         int r = pixel[2] * bins / 256; 
         int g = pixel[1] * bins / 256; 
         int b = pixel[0] * bins / 256; 
 
-        // make sure we don't go out of bounds
-        // (can happen with value 255: 255*8/256 = 7.96 which rounds to 8)
         if (r >= bins) r = bins - 1;
         if (g >= bins) g = bins - 1;
         if (b >= bins) b = bins - 1;
 
-        // convert (r,g,b) to a single index in the histogram
-        // basically flattening a 3D array into 1D
-        int index = r * 64 + g * 8 + b; // ranges from 0 to 511
-        hist[index]++;
+        int idx = r * 64 + g * 8 + b;  
+        hist[idx]++; 
       }
     }
     
@@ -261,27 +247,20 @@ int extractMultiHistogram(const cv::Mat& src, std::vector<float>& features) {
 }
 
 /*
-  Extract Texture and Color Features (Task 4)
+  Extract Texture and Color Features 
 
-  This function combines two types of features: texture (using edges) and color.
+  Combines texture (Sobel edges) and color (RGB histogram)
   
-  For texture: we use Sobel edge detection to find gradient magnitudes, then 
-  make a histogram with 16 bins (covering values 0-255)
-  
-  For color: we make an RGB histogram with 8 bins per channel (8*8*8 = 512 bins)
-  
-  Final feature vector has 16 + 512 = 528 total values
-
-  Input:
-    src - input image (cv::Mat), using const to prevent modifying src img (safety)
-    features - output feature vector (std::vector<float>)
+  Texture: 16 bins for gradient magnitudes (0-255 range)
+  Color: 8 bins per RGB channel = 8*8*8 = 512 bins
+  Total 528 features
 */
 int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
   if (src.empty()) return -1;
   features.clear();
   
-  // First get texture features from edge detection
-  // need to convert to grayscale first
+  // Get texture features from edge detection
+  // convert to grayscale
   cv::Mat gray;
   cv::cvtColor(src, gray, cv::COLOR_BGR2GRAY);
   
@@ -302,8 +281,8 @@ int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
   for (int y = 0; y < magnitude.rows; y++) {
     for (int x = 0; x < magnitude.cols; x++) {
       int val = magnitude.at<uchar>(y, x);
-      int bin = val * 16 / 256;  // converts 0-255 range into 0-15 bins
-      if (bin >= 16) bin = 15;  // safety check
+      int bin = val * 16 / 256;  
+      if (bin >= 16) bin = 15; 
       texHist[bin]++;
     }
   }
@@ -313,8 +292,7 @@ int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
     features.push_back(texHist[i]);
   }
   
-  // now get color features with RGB histogram
-  // same approach as Task 3 but for the whole image
+  // get color features with RGB histogram
   std::vector<float> colorHist(512, 0);
   for (int y = 0; y < src.rows; y++) {
     for (int x = 0; x < src.cols; x++) {
@@ -325,7 +303,7 @@ int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
       if (r >= 8) r = 7; 
       if (g >= 8) g = 7;
       if (b >= 8) b = 7;
-      colorHist[r * 64 + g * 8 + b]++;  // flatten into 1D
+      colorHist[r * 64 + g * 8 + b]++;  
     }
   }
   
@@ -337,3 +315,44 @@ int extractTextureAndColor(const cv::Mat& src, std::vector<float>& features) {
   return 0;
 }
   
+/*
+  Extract Custom Features for Portraits
+
+  Combines DNN embedding with skin tone and brightness from center region.
+  The DNN gives general features, skin/brightness help match portraits specifically.
+  
+  529 total: 512 DNN (from CSV) + 16 skin bins + 1 brightness
+*/
+int extractCustomFeaturesWithEmbedding(const cv::Mat& src, const std::vector<float>& embedding, std::vector<float>& features) {
+  features.clear();
+  
+  // add DNN embedding first
+  features.insert(features.end(), embedding.begin(), embedding.end());
+  
+  // work with center region
+  int cx = src.cols / 2, cy = src.rows / 2;
+  int size = std::min(cx, cy) / 2;
+  cv::Mat centerImg = src(cv::Rect(cx - size, cy - size, size * 2, size * 2));
+  
+  cv::Mat hsv;
+  cv::cvtColor(centerImg, hsv, cv::COLOR_BGR2HSV);
+  
+  // build skin tone histogram 
+  std::vector<float> skinHist(16, 0);
+  for (int y = 0; y < hsv.rows; y++) {
+    for (int x = 0; x < hsv.cols; x++) {
+      cv::Vec3b p = hsv.at<cv::Vec3b>(y, x);
+      if (p[0] <= 50 && p[1] >= 20 && p[1] <= 150 && p[2] >= 50) {
+        skinHist[std::min(p[0] * 16 / 256, 15)]++;
+      }
+    }
+  }
+  features.insert(features.end(), skinHist.begin(), skinHist.end());
+  
+  // add brightness
+  cv::Mat gray;
+  cv::cvtColor(centerImg, gray, cv::COLOR_BGR2GRAY);
+  features.push_back(cv::mean(gray)[0]);
+  
+  return 0;
+}
