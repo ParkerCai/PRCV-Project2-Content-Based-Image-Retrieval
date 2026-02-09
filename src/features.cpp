@@ -356,3 +356,49 @@ int extractCustomFeaturesWithEmbedding(const cv::Mat& src, const std::vector<flo
   
   return 0;
 }
+
+/*
+  Extract Oriented Gradient Histogram Features
+
+  Computes edge orientations across the image and groups them into 8 directional bins.
+  Uses Sobel filters to find gradients, then calculates angle and magnitude for each pixel.
+  Threshold set at magnitude 10 to skip noise
+
+*/
+int extractOrientedGradientHistogram(const cv::Mat& src, std::vector<float>& features) {
+  if (src.empty()) return -1;
+  features.clear();
+  
+  cv::Mat gray;
+  cv::cvtColor(src, gray, cv::COLOR_BGR2GRAY);
+  
+  cv::Mat sobelX, sobelY;
+  cv::Sobel(gray, sobelX, CV_16S, 1, 0);
+  cv::Sobel(gray, sobelY, CV_16S, 0, 1);
+  
+  const int NUM_BINS = 8;
+  std::vector<float> hist(NUM_BINS, 0);
+  
+  for (int y = 0; y < gray.rows; y++) {
+    for (int x = 0; x < gray.cols; x++) {
+      float gx = sobelX.at<short>(y, x);
+      float gy = sobelY.at<short>(y, x);
+      
+      float mag = sqrt(gx*gx + gy*gy);
+      
+      if (mag > 10.0f) {  // threshold out noise
+        float angle = atan2(gy, gx) * 180.0 / M_PI;
+        if (angle < 0) angle += 360;
+        
+        int bin = (int)(angle / 45.0);
+        if (bin >= NUM_BINS) bin = NUM_BINS - 1; // clamp to valid range
+        
+        hist[bin] += mag;
+      }
+    }
+  }
+  
+  features.insert(features.end(), hist.begin(), hist.end());
+  
+  return 0;
+}

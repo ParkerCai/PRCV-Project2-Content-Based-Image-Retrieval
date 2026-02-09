@@ -33,7 +33,8 @@ enum FeatureType {
   MultiHistogram,
   TextureAndColor,
   DNNEmbedding,
-  CustomDesign
+  CustomDesign,
+  OrientedGradientHistogram
 };
 
 // Helper function to check if a file is an image based on extension
@@ -71,6 +72,7 @@ std::vector<float> getEmbedding(
     textureandcolor - combined texture and color features with custom distance
     dnnembedding - DNN embedding with cosine distance
     customdesign - custom features and distance function 
+    orientedgradient - histogram of edge orientations with custom distance
 */
 int main(int argc, char* argv[]) {
   // 1. parse command line arguments
@@ -110,6 +112,9 @@ int main(int argc, char* argv[]) {
     }
     else if (featureArg == "custom") {
       featureType = CustomDesign;
+    }
+    else if (featureArg == "gradient") {
+      featureType = OrientedGradientHistogram;
     }
   }
   
@@ -228,6 +233,10 @@ int main(int argc, char* argv[]) {
   // Extract custom features
    status = extractCustomFeaturesWithEmbedding(src, queryEmbedding, queryFeatures);
   }
+  else if (featureType == OrientedGradientHistogram) {
+    std::println("Oriented Gradient Histogram");
+    status = extractOrientedGradientHistogram(src, queryFeatures);
+  }
   else {
     std::println("Baseline features (7x7 center block) with SSD");
     status = extractBaselineFeatures(src, queryFeatures);
@@ -288,7 +297,10 @@ int main(int argc, char* argv[]) {
       } else {
         extractStatus = extractCustomFeaturesWithEmbedding(image, imgEmbedding, features);
       }
-  }
+    } 
+    else if (featureType == OrientedGradientHistogram) {
+      extractStatus = extractOrientedGradientHistogram(image, features);
+    }
     else {
       extractStatus = extractBaselineFeatures(image, features);
     }
@@ -318,6 +330,9 @@ int main(int argc, char* argv[]) {
     }
     else if (featureType == CustomDesign) {
       distance = customDistance(queryFeatures, features);
+    }
+    else if (featureType == OrientedGradientHistogram) {
+      distance = histogramIntersectionDistance(queryFeatures, features);
     }
     else {
       distance = sumOfSquaredDifference(queryFeatures, features);
