@@ -9,9 +9,34 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
+# Find OpenGL
+find_package(OpenGL REQUIRED)
+
+# Fetch GLFW
+include(FetchContent)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.3.8
+)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(glfw)
+
+# Fetch Dear ImGui
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.90.1
+)
+FetchContent_MakeAvailable(imgui)
+
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/../include)      # Your headers
 include_directories(${CMAKE_SOURCE_DIR}/csv_util)        # csv_util
+include_directories(${imgui_SOURCE_DIR})                 # ImGui headers
+include_directories(${imgui_SOURCE_DIR}/backends)        # ImGui backend headers
 
 # Output executables to bin folder
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/../bin)
@@ -19,20 +44,28 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/../bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/../bin)
 
 # --- Core source files ---
-# TODO: Add source files here as you implement them
 set(SOURCES
     features.cpp
     distance.cpp
     csv_util/csv_util.cpp    # csv_util
 )
 
-# --- Executables ---
-# TODO: Add new executables and/or modify existing as you build your programs
+# --- ImGui source files (using OpenGL2 backend - simpler, no loader needed) ---
+set(IMGUI_SOURCES
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp
+)
 
-# CBIR main program
+# --- Executables ---
+
+# CBIR main program (CLI)
 add_executable(cbir cbir.cpp ${SOURCES})
 target_link_libraries(cbir ${OpenCV_LIBS})
 
-# Example: Build feature database
-# add_executable(build_db build_db.cpp ${SOURCES})
-# target_link_libraries(build_db ${OpenCV_LIBS})
+# CBIR GUI program
+add_executable(cbir_gui gui/cbir_gui.cpp gui/app_icon.rc ${SOURCES} ${IMGUI_SOURCES})
+target_link_libraries(cbir_gui ${OpenCV_LIBS} glfw OpenGL::GL dwmapi)
