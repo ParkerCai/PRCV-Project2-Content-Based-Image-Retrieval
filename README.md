@@ -137,3 +137,15 @@ cmake --build . --config Release
 - **Feature**: 8-bin histogram of edge directions (8 dimensions)
 - **Distance Metric**: Histogram Intersection
 - **Testing**: .\bin\cbir.exe data\olympus\pic.0462.jpg data\olympus gradient
+
+### Extension: GUI
+
+- **Framework**: Dear ImGui with GLFW + OpenGL2 backend
+- **Features**:
+  - Drag-and-drop image loading for query input
+  - Browse and switch image database directories on the fly
+  - Dropdown selection for all feature types and distance metrics
+  - Side-by-side visual comparison of query image and ranked results
+  - Resizable split panel layout
+  - Keyboard shortcuts (Enter to search, Q to quit)
+- **Run**: `.\bin\cbir_gui.exe`
