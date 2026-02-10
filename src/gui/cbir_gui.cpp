@@ -261,13 +261,7 @@ void errorCallback(int error, const char* description) {
 
 void performSearch() {
   if (g_app.queryImage.empty()) { g_app.statusMessage = "Error: No query image loaded"; return; }
-  if (!std::filesystem::exists(g_app.imageDatabaseDir)) {
-    std::println(stderr, "CWD: {}", std::filesystem::current_path().string());
-    std::println(stderr, "DB path: '{}'", g_app.imageDatabaseDir);
-    std::println(stderr, "Absolute: {}", std::filesystem::absolute(g_app.imageDatabaseDir).string());
-    g_app.statusMessage = "Error: Image database directory not found";
-    return;
-  }
+  if (!std::filesystem::exists(g_app.imageDatabaseDir)) { g_app.statusMessage = "Error: Image database directory not found"; return; }
 
   g_app.isSearching = true;
   g_app.statusMessage = "Searching...";
@@ -624,6 +618,20 @@ int main(int argc, char* argv[]) {
       GLFWimage glfwIcon{iconImg.cols, iconImg.rows, iconImg.data};
       glfwSetWindowIcon(window, 1, &glfwIcon);
     }
+  }
+
+  // Resolve default data paths: try CWD first, then exe-relative
+  {
+    auto exeDir = std::filesystem::path(argv[0]).parent_path();
+    auto tryResolve = [&](char* buf, size_t bufSize) {
+      if (!std::filesystem::exists(buf)) {
+        auto exeRelative = exeDir / buf;
+        if (std::filesystem::exists(exeRelative))
+          strncpy(buf, exeRelative.string().c_str(), bufSize - 1);
+      }
+    };
+    tryResolve(g_app.imageDatabaseDir, sizeof(g_app.imageDatabaseDir));
+    tryResolve(g_app.csvFilePath, sizeof(g_app.csvFilePath));
   }
 
   glfwSetDropCallback(window, dropCallback);
