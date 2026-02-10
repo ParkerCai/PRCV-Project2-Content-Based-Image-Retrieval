@@ -261,7 +261,13 @@ void errorCallback(int error, const char* description) {
 
 void performSearch() {
   if (g_app.queryImage.empty()) { g_app.statusMessage = "Error: No query image loaded"; return; }
-  if (!std::filesystem::exists(g_app.imageDatabaseDir)) { g_app.statusMessage = "Error: Image database directory not found"; return; }
+  if (!std::filesystem::exists(g_app.imageDatabaseDir)) {
+    std::println(stderr, "CWD: {}", std::filesystem::current_path().string());
+    std::println(stderr, "DB path: '{}'", g_app.imageDatabaseDir);
+    std::println(stderr, "Absolute: {}", std::filesystem::absolute(g_app.imageDatabaseDir).string());
+    g_app.statusMessage = "Error: Image database directory not found";
+    return;
+  }
 
   g_app.isSearching = true;
   g_app.statusMessage = "Searching...";
@@ -304,14 +310,15 @@ void performSearch() {
     distances.push_back({computeDistance(type, queryFeatures, features), entry.path().string()});
   }
 
-  // Sort and build results
+  // Sort and build results, skipping the self-match (query image with distance ~0)
   std::sort(distances.begin(), distances.end());
-  int n = std::min(g_app.numResultsToShow, static_cast<int>(distances.size()));
+  int startIdx = (!distances.empty() && distances[0].first < 1e-4f) ? 1 : 0;
+  int n = std::min(g_app.numResultsToShow, static_cast<int>(distances.size()) - startIdx);
   for (int i = 0; i < n; i++) {
     SearchResult r;
-    r.filepath = distances[i].second;
+    r.filepath = distances[startIdx + i].second;
     r.filename = std::filesystem::path(r.filepath).filename().string();
-    r.distance = distances[i].first;
+    r.distance = distances[startIdx + i].first;
     cv::Mat img = cv::imread(r.filepath);
     if (!img.empty()) r.textureId = matToTexture(img, r.width, r.height);
     g_app.results.push_back(r);
@@ -319,7 +326,7 @@ void performSearch() {
 
   g_app.hasResults = true;
   g_app.isSearching = false;
-  g_app.statusMessage = "Found " + std::to_string(distances.size()) + " images. Showing top " + std::to_string(n) + ".";
+  g_app.statusMessage = "Found " + std::to_string(distances.size() - startIdx) + " images. Showing top " + std::to_string(n) + ".";
 }
 
 // ============================================================================
@@ -516,6 +523,14 @@ void renderUI() {
     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
     ImGuiWindowFlags_NoBringToFrontOnFocus);
 
+  // Keyboard shortcuts (only when not typing in a text field)
+  if (!io.WantTextInput) {
+    if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
+      performSearch();
+    if (ImGui::IsKeyPressed(ImGuiKey_Q))
+      glfwSetWindowShouldClose(glfwGetCurrentContext(), GLFW_TRUE);
+  }
+
   ImGui::PushFont(io.Fonts->Fonts[0]);
   ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Content-Based Image Retrieval");
   ImGui::PopFont();
@@ -561,12 +576,6 @@ void renderUI() {
 // ============================================================================
 
 int main(int argc, char* argv[]) {
-  // Set working directory to exe's folder so relative paths work when double-clicking
-  std::filesystem::path exePath(argv[0]);
-  if (exePath.has_parent_path()) {
-    std::filesystem::current_path(exePath.parent_path());
-  }
-
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { std::println(stderr, "Failed to initialize GLFW"); return 1; }
 
@@ -580,9 +589,17 @@ int main(int argc, char* argv[]) {
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+  glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
   GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "CBIR - Content-Based Image Retrieval", nullptr, nullptr);
   if (!window) { std::println(stderr, "Failed to create GLFW window"); glfwTerminate(); return 1; }
+
+  // Center window on screen
+  if (GLFWmonitor* mon = glfwGetPrimaryMonitor()) {
+    const GLFWvidmode* mode = glfwGetVideoMode(mon);
+    glfwSetWindowPos(window, (mode->width - windowWidth) / 2, (mode->height - windowHeight) / 2);
+  }
+  glfwShowWindow(window);
 
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
